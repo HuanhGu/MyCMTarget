@@ -1,0 +1,35 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "debug cmtarget_llm_chemMoe",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "./Cmtarget-llm/chem_moe.py",
+            "console": "integratedTerminal",
+            "cwd":"D:/Workplace/MyCMTarget",
+            "env":{ "CUDA_VISIBLE_DEVICES": "5"}
+        },
+        {
+            "name": "debug cmtarget_llm_main",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "cwd":"D:/Workplace/MyCMTarget/Cmtarget-llm",
+            "env":{ "CUDA_VISIBLE_DEVICES": "5"}
+        },
+        {
+            "name": "debug cmtarget_llm_multiFusion",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "./Cmtarget-llm/multi_fusion.py",
+            "console": "integratedTerminal",
+            "cwd":"D:/Workplace/MyCMTarget",
+            "env":{ "CUDA_VISIBLE_DEVICES": "5"}
+        }
+    ]
+}

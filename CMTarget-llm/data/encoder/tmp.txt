@@ -1,0 +1,6 @@
+    drugbank_dataset = DTIDataset(drugbank_path)
+    drugbank_dataloader = DataLoader(drugbank_dataset, batch_size=2, shuffle=True, num_workers=0)
+    encoder_drugbank = SequencePreEncoder(drugbank_dataloader, encoder_savepath_drugbank)
+        if not encoder_savepath_hit.exists():
+        print("hit_encoder_loader文件不存在")
+        encoder_hit.encode_and_save()
