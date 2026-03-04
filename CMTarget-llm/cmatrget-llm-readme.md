@@ -119,3 +119,28 @@ label：
 
 tensor([[1.],
         [0.]])
+
+
+
+
+
+## Encoder、Embdding、Forward、Inference区别
+
+- Encoder：序列→token_id
+
+- Embdding：token_id→连续向量
+- Forward：每个 `nn.Module` 都必须有def forward(self, x):
+- Inference（推理）：模型不更新参数、不反向传播、只做预测，就叫推理。
+
+
+
+
+
+```
+def train(self):
+        train_dataloader, test_dataloader = self.dataloader
+        max_f1 = 0
+        
+        for i in range(self.epochs):
+            loss = self.train_model(self.model, train_dataloader, i)
+```

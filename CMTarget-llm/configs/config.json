@@ -1,9 +1,0 @@
-{
-    "source": "drugbank",
-    "target": "hit",
-    "emb": 512,
-    "learning_rate": 0.0001,
-    "epoch": 5,
-    "score_way": "MF",
-    "task": "train"
-}
