@@ -65,13 +65,15 @@ class CMTargetModel(nn.Module):
         self.scorer = Scorer(configs)
 
 
-    def forward(self, protein_batch, compound_batch):
+    def forward(self, protein_features, drug_features):
         """
         model的前向传播
 
         输入:
-            protein_batch: [batch_size, ]蛋白质序列
-            compound_batch: [batch_size, ]化合物序列
+            drug_features:[batch_size,] 化合物特征向量
+            protein_features : [batch_size, ] 蛋白质特征向量
+            // protein_batch: [batch_size, ]蛋白质序列
+            // compound_batch: [batch_size, ]化合物序列
             // pro_encoder_modals: [3, batch_size, token_num, token_dim] 蛋白质三种模态的特征encoder tensor
             // drug_encoder_modals:[3, batch_size, token_num, token_dim] 化合物三种模态的特征encoder tensor
             
@@ -84,8 +86,11 @@ class CMTargetModel(nn.Module):
         """
         # 1. 对输入的数据进行encoder
         # 我直接把encoder放到DTIDataset里
-        protein_features = self.feature_extractor.pro_fea_extract(protein_batch).to(self.device)
-        drug_features = self.feature_extractor.drug_fea_extract_chemberta(compound_batch).to(self.device)
+        # protein_features = self.feature_extractor.pro_fea_extract(protein_batch).to(self.device)
+        # drug_features = self.feature_extractor.drug_fea_extract_chemberta(compound_batch).to(self.device)
+        
+        protein_features = protein_features.to(self.device)
+        drug_features = drug_features.to(self.device)
 
         # 构造三模态
         # print(type(protein_features))

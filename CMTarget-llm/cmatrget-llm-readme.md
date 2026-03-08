@@ -1,3 +1,37 @@
+## 任务待办
+
+✅❌
+
+| 任务待办                           |      |
+| ---------------------------------- | ---- |
+| ❌把predictor写一下                 |      |
+| ❌把特征提取encoder放到dataloader里 |      |
+|                                    |      |
+
+
+
+```
+1.把特征提取放到dataloader，模型调用时get_dataloader()，就能直接调用特征向量。
+2.模型调用时dataloader时，只能得到文本序列，训练时encoder成特征向量
+从性能和封装的角度聊聊哪个更好
+```
+
+**重复计算：** 如果训练 100 个 Epoch，方案 B 就会把同样的文本重复编码 100 次，这在算力资源紧张时是巨大的浪费。
+
+建议一：对于“静态特征”，选方案 A
+
+如果你的特征提取逻辑是**不可学习的**（例如：TF-IDF 向量、手动提取的统计特征、或者已经冻结参数的预训练模型输出），请务必放在 DataLoader 中甚至直接离线存入数据库/硬盘。
+
+建议二：对于“可学习特征”，选方案 B
+
+如果特征提取部分（如 Embedding 层、CNN/RNN Encoder）需要随损失函数**同步更新参数**，则必须放在模型内部。
+
+
+
+## github链接
+
+https://github.com/HuanhGu/MyCMTarget
+
 ## 消融试验：
 
 chemberta 的cls_embedding 使用第一层的embedding，还是last_state
@@ -144,3 +178,52 @@ def train(self):
         for i in range(self.epochs):
             loss = self.train_model(self.model, train_dataloader, i)
 ```
+
+
+
+
+
+
+
+
+## 其它
+时间戳
+
+```python
+from datetime import datetime
+
+# 生成格式：年 月 日 _ 时 分 秒
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+config['timestamp'] = timestamp
+print(timestamp)  # 输出示例: 20260304_180521
+```
+
+
+
+
+
+```python
+config['batch_size'] = args.batch_size
+config['emb'] = args.embedding_dim
+config['epochs'] = args.epochs
+
+
+config['learning_rate'] = args.learning_rate
+
+config['model'] = args.model_name
+config['model_path'] = args.model_path
+
+config['score_way'] = args.score_way
+# config['score_dim'] = args.score_emb_dim
+config['source'] = args.source
+config['target'] = args.target
+config['task'] = args.task
+
+from datetime import datetime
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+config['timestamp'] = timestamp
+
+# config['timestamp'] = args.timestamp
+config['device'] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+```
+
