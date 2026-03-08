@@ -131,7 +131,7 @@ class CMTargetModel(nn.Module):
         "self.configs['model_path']"
         model_path = os.path.join("checkpoints", f"{self.stamp}_{'AttFusion'}.pt")
         torch.save(self.state_dict(), model_path) # 保存权重参数
-
+        
     def load_model(self, model_path):
         self.load_state_dict(torch.load(model_path))
 

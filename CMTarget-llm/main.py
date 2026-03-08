@@ -40,7 +40,7 @@ def prepare():
     parser.add_argument('-t', '--target', default='hit')
 
     parser.add_argument('--timestamp', type=str, default = "001")
-    parser.add_argument('--task', type=str, default = "train")#train
+    parser.add_argument('--task', type=str, default = "predict")#train
 
     args = parser.parse_args()
 
@@ -75,7 +75,8 @@ if __name__ == '__main__':
     # 2. 获取超参数配置 ./configs/config.json
     configs = prepare()
     
-    config_dir = 'configs'
+
+    config_dir = os.path.join('configs', configs['timestamp'])
     if not os.path.exists(config_dir):
         os.makedirs(config_dir)
     config_path = os.path.join(config_dir, 'config.json')
@@ -94,11 +95,17 @@ if __name__ == '__main__':
     hit_encoder_path = Path("./data/encoder/hit_feature.pt")
     drugbank_encoder_path = Path("./data/encoder/drugbank_feature.pt")
 
+    hit_shuffle_path = Path("./data/data_shuffle/hit_shuffle.csv")
+    drugbank_shuffle_path = Path("./data/data_shuffle/drugbank_shuffle.csv")
+
+
     # data预处理 & 保存
      # 尽可能使用大的batch_size提高速度
     if not os.path.exists(hit_encoder_path):
         print(f"❌{hit_encoder_path}不存在encoder后的文件~")
-        data_preEncoder(hit_path, hit_encoder_path, drugbank_path,  drugbank_encoder_path,bs=32)
+        data_preEncoder(hit_path, hit_encoder_path, hit_shuffle_path,
+                        drugbank_path, drugbank_encoder_path, drugbank_shuffle_path,
+                        bs=32)
 
 
     # 3. 训练模型
@@ -106,17 +113,15 @@ if __name__ == '__main__':
         print("start training")
         print(f"train model {configs['model']}: epoch: {configs['epochs']}, batch_size: {configs['batch_size']}, lr: {configs['learning_rate']}")
 
-        trainer = CMTargetTrainer(configs, hit_encoder_path)# model, 
+        trainer = CMTargetTrainer(configs, hit_encoder_path, hit_shuffle_path)# model, 
         trainer.train()
 
         print("\nTraining finished.")
-
+    
     elif configs['task'] == 'predict':
         print("start Predicting")
 
-        # model = CMTargetModel(configs)
-
-        predictor = CMTargetPredictor(configs, drugbank_encoder_path)#model
+        predictor = CMTargetPredictor(configs, drugbank_encoder_path, hit_shuffle_path)#model
         predictor.predict()
 
 

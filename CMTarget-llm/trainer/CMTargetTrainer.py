@@ -9,7 +9,7 @@ from model.CMTargetModel import CMTargetModel
 from model.multi_fusion import *
 from model.moe import *
 from utils.metrix import *
-from utils.utils import TrainLogger, PredictorLogger
+from utils.utils import TrainLogger, PredictLogger
 
 
 
@@ -19,11 +19,12 @@ class CMTargetTrainer():
         dataloader: (compound, protein, label), [3, batch_size, token_num, token_dim]
     
     """
-    def __init__(self, configs, encoder_path):
+    def __init__(self, configs, encoder_path, hit_shuffle_path):
         self.configs = configs
         self.device = configs['device']
         self.model = self.get_model()
         self.encoder_path = encoder_path
+        self.hit_shuffle_path = hit_shuffle_path
         # self.dataloader = dataloader
 
         self.learning_rate = configs['learning_rate']
@@ -35,14 +36,19 @@ class CMTargetTrainer():
         self.feature_extractor = FeatureExtractor()
 
         # 数据loader
-        self.train_dataloader = self.get_dataloader(encoder_path)
-        self.evl_dataloader = self.get_dataloader(encoder_path)
+        self.train_dataloader, self.train_ds_smiles = self.get_dataloader(encoder_path, hit_shuffle_path)
+        self.evl_dataloader, self.evl_ds_smiles = self.get_dataloader(encoder_path, hit_shuffle_path)
 
 
-    def get_dataloader(self, encoder_path):
+    def get_dataloader(self, encoder_path, shuffle_path):
+        # [smiles, sequence, label]
+        train_ds_smiles = DTIDataset(shuffle_path)
+        # train_loader_smiles = DataLoader(train_ds_smiles, batch_size=self.batch_size)
+        
+        # [tensor, tensor, label]
         train_ds = EncodedDTIDataset(encoder_path)
-        train_loader = DataLoader(train_ds, batch_size=self.batch_size, shuffle=True, collate_fn=collate_fn)
-        return train_loader
+        train_loader = DataLoader(train_ds, batch_size=self.batch_size, collate_fn=collate_fn)
+        return train_loader, train_ds_smiles
 
     
     def get_model(self):
@@ -154,8 +160,8 @@ class CMTargetTrainer():
         
         logger = TrainLogger(f"Training", self.configs['timestamp'])
         
-        # protein_list = list(self.train_dataloader.dataset.user_data)
-        # drug_list = list(self.train_dataloader.dataset.item_data)
+        protein_list = self.train_ds_smiles.data['protein'].tolist()
+        drug_list = self.train_ds_smiles.data['compound'].tolist()
         
         logger.update_protein_drug(protein_list, drug_list)
 

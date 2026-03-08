@@ -56,44 +56,64 @@ class SequencePreEncoder:
     输出:
         savepath是encoder的特征向量
     '''
-    def __init__(self, dataloader, savepath):
+    def __init__(self, dataloader, encoder_savepath, smiles_savepath):
         self.dataloader = dataloader
-        self.save_path = savepath
+        self.save_path = encoder_savepath
+        self.smiles_savepath = smiles_savepath
         self.feature_extractor = FeatureExtractor()
 
     def encode_and_save(self):
-        "将数据集所有蛋白质和化合物序列进行编码, 并保存"
+        "一、将数据集所有蛋白质和化合物序列进行编码, 并保存"
         all_protein_features = []
         all_drug_features = []
         all_labels = []
+        print(f"🚀 开始预编码特征[tensor, tensor, label] (设备: {self.feature_extractor.device})...")
+        
+        """二、将原始的蛋白质序列、化合物序列和标签保存到 CSV"""
+        data_list = []
+        print(f"🚀 开始提取数据并准备写入 CSV...[smiles,sequence,label] ...")
 
-
-        print(f"🚀 开始预编码特征 (设备: {self.feature_extractor.device})...")
         for compound_batch, protein_batch, label_batch in tqdm(self.dataloader):
-            # 1. 提取蛋白质 (返回的是 list of Tensors)
+            # 任务1：保存[tensor, tensor, label]
+            # 1.1 提取蛋白质 (返回的是 list of Tensors)
             p_feats = self.feature_extractor.pro_fea_extract(protein_batch)
             all_protein_features.extend(p_feats)
-
-            # 2. 提取化合物 (返回的是 Tensor [B, L, H])
+            # 1.2. 提取化合物 (返回的是 Tensor [B, L, H])
             d_feats = self.feature_extractor.drug_fea_extract_chemberta(compound_batch)
-            # 将 batch 拆开存入 list
-            all_drug_features.extend([d_feats[i] for i in range(d_feats.size(0))])
-            # drug_features = self.feature_extractor.drug_fea_extract_chemberta(compound_batch)
-
+            all_drug_features.extend([d_feats[i] for i in range(d_feats.size(0))]) # 将 batch 拆开存入 list
+            # 1.3 标签
             all_labels.append(label_batch.cpu())
+
+
+            # 任务2：保存[smiles,sequence,label] 
+            # 将输入序列写入csv文件
+            labels = label_batch.cpu().numpy()
+            # 遍历 batch 中的每一条数据
+            for i in range(len(compound_batch)):
+                data_list.append({
+                    "compound": compound_batch[i],
+                    "protein": protein_batch[i],
+                    "label": labels[i]
+                })
         
-        
+        # <任务1>
         # 合并标签
         all_labels = torch.cat(all_labels, dim=0)
-
         # 保存为 dict。注意：protein 和 drug 此时是 List[Tensor]
         torch.save({
             "protein": all_protein_features,
             "drug": all_drug_features,
             "label": all_labels
         }, self.save_path)
-
         print(f"✅ 保存完成到{self.save_path}！共 {len(all_labels)} 条数据。")
+
+
+        # <任务2>
+        # 使用 Pandas 转化为表格
+        df = pd.DataFrame(data_list)
+        # 保存文件( index=False 不保存行索引 )
+        df.to_csv(self.smiles_savepath, index=False, encoding='utf-8')
+        print(f"✅ CSV 保存完成！路径: {self.smiles_savepath}，共 {len(df)} 条记录。")
         
 
 
@@ -123,31 +143,34 @@ class EncodedDTIDataset(Dataset):
 
 # --- 调用演示 ---
 
-def data_preEncoder(hit_path, hit_encoder_path, drugbank_path,  drugbank_encoder_path,bs=32):
+def data_preEncoder(hit_path, h_encoder_path, h_shuffle_path, 
+                    drugbank_path, d_encoder_path, d_shuffle_path, 
+                    bs=32):
     """
     读取序列数据文件, 对文件进行encoder预处理
 
     hit_path、drugbank_path : 文本路径
     hit_encoder_path、drugbank_encoder_path : encoder向量的路径
+    hit_shuffle_path, d_shuffle_path : dataloader打乱后的文本路径
     """
 
     # 1. 预处理
     # drugbank_path = Path("./data/dataset/drugbank/drugbank.csv")
     # hit_path = Path("./data/dataset/hit/hit.csv")
-
+    
     # 序列dataloader
     hit_dataset = DTIDataset(hit_path)
-    hit_dataloader = DataLoader(hit_dataset, batch_size=bs, shuffle=True, num_workers=0) # 序列的loader
+    h_dataloader = DataLoader(hit_dataset, batch_size=bs, shuffle=True, num_workers=0) # 序列的loader
 
     drugbank_dataset = DTIDataset(drugbank_path)
-    drugbank_dataloader = DataLoader(drugbank_dataset, batch_size=bs, shuffle=True, num_workers=0)
+    d_dataloader = DataLoader(drugbank_dataset, batch_size=bs, shuffle=True, num_workers=0)
 
 
     # encoder后的dataloader
-    hit_encoder = SequencePreEncoder(hit_dataloader, hit_encoder_path)
+    hit_encoder = SequencePreEncoder(h_dataloader, h_encoder_path, h_shuffle_path)
     hit_encoder.encode_and_save()
 
-    drugbank_encoder = SequencePreEncoder(drugbank_dataloader, drugbank_encoder_path)
+    drugbank_encoder = SequencePreEncoder(d_dataloader, d_encoder_path, d_shuffle_path)
     drugbank_encoder.encode_and_save()
 
 

@@ -1,0 +1,3 @@
+Epoch [1/2]: loss = 716.1948, recall = 1.0, precision = 0.6667, f1 = 0.8, accuracy = 0.6667, auc = 0.5
+Epoch [2/2]: loss = 699.9323, recall = 1.0, precision = 0.6667, f1 = 0.8, accuracy = 0.6667, auc = 0.5
+[BEST] recall = 1.0, precision = 0.6667, f1 = 0.8, accuracy =0.6667, auc = 0.5

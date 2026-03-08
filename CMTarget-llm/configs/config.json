@@ -8,6 +8,6 @@
     "score_way": "MF",
     "source": "drugbank",
     "target": "hit",
-    "task": "train",
-    "timestamp": "20260306_234100"
+    "task": "predict",
+    "timestamp": "20260308_135630"
 }
