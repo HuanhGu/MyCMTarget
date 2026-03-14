@@ -112,6 +112,73 @@ class BasicMOE(nn.Module):
         return output, moe_loss
 
 
+# 手动为每个专家添加适配器（Adapter）的伪代码
+class AdapterExpert(nn.Module):
+    def __init__(self, original_expert):
+        super().__init__()
+        self.original_expert = original_expert
+        # 冻结原始专家
+        for p in self.original_expert.parameters():
+            p.requires_grad = False
+        # 添加旁路 LoRA 层 (A, B)
+        self.lora_a = nn.Linear(in_dim, r)
+        self.lora_b = nn.Linear(r, out_dim)
+
+    def forward(self, x):
+        return self.original_expert(x) + self.lora_b(self.lora_a(x))
+    
+
+'''
+import torch
+import torch.nn as nn
+
+## --- 1. 准备模型 ---
+# 假设 model 是你已经初始化好的、包含 AdapterExpert 的大模型
+model = YourMainModel() 
+
+# 加载预训练权重（这是微调的前提）
+model.load_state_dict(torch.load("pretrained_model.pth"))
+
+## --- 2. 设置微调开关 (核心分隔区) ---
+def ready_for_finetuning(model):
+    # 冻结所有
+    for param in model.parameters():
+        param.requires_grad = False
+        
+    # 只放开每个专家里的 LoRA 层和路由层 (Router)
+    # 因为路由层决定了怎么分配给这些带 Adapter 的专家
+    for name, module in model.named_modules():
+        if "lora_" in name or "router" in name:
+            for param in module.parameters():
+                param.requires_grad = True
+
+ready_for_finetuning(model)
+
+## --- 3. 定义优化器 ---
+# 这里只传入 requires_grad=True 的参数
+optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-4)
+criterion = nn.MSELoss() # 假设是回归任务
+
+## --- 4. 训练循环 (微调过程) ---
+model.train() 
+for epoch in range(10):
+    for batch in dataloader:
+        # 清空梯度
+        optimizer.zero_grad()
+        
+        # 前向传播 (此时 original_expert 的权重参与计算，但不产生梯度)
+        output = model(batch.inputs)
+        loss = criterion(output, batch.labels)
+        
+        # 反向传播 (只有 lora_a, lora_b 和 router 会更新)
+        loss.backward()
+        optimizer.step()
+
+# 保存时，其实只需要保存 LoRA 的权重（可以极大地节省空间）
+torch.save({k: v for k, v in model.state_dict().items() if "lora" in k}, "lora_adapter.pth")
+
+
+'''
 
 """
 def test_basic_moe():

@@ -1,0 +1,75 @@
+    # a. 划分数据集  drugbank、Hit [8:2]
+    # b. preTrain = drugbank, fineTuning = HIT_0.8, test = Hit_0.2, 
+    # c. 读取三个数据集，进行encoder操作
+    # d. 全部在 data/input 文件夹下  ./data/input/trainShuffle.pt, trainEncoder.pt
+
+"""
+2026-03-11
+1. 数据思路
+直接split
+
+get_dataloader(dataset路径, encoder路径, shuffle路径)
+
+
+2. main函数思路
+源域训练
+源域测试（保存最好模型参数）
+
+目标域微调（加载最好参数，loRA插件微调）
+目标域测试（最终输出的结果）
+
+"""
+
+
+2026-03-12-23:40
+
+
+        # 训练扩展
+    # 【微调】功能 : 使用 hit_0.8 微调 
+    # 关于微调：
+    # 1). 加载模型参数作为初始值
+    # 2). 微调模型应该只调整一部分参数, 因此应该将模型重新写一遍
+    # 3). 微调模型也需要训练 → 也应该有 train, train_anepoch, evl_anepoch
+
+
+
+
+    # source = configs['source']
+    # target = configs['target']
+
+    source_path = Path("./data/dataset") / configs['source'] / f"{configs['source']}.csv"
+    target_path = Path("./data/dataset") / configs['target'] / f"{configs['target']}.csv"
+
+    # # encoder后保存路径
+    # train_encoder_path = Path("./data/encoder/train_feature.pt")
+    # test_encoder_path = Path("./data/encoder/ test_feature.pt")
+
+    # train_shuffle_path = Path("./data/data_shuffle/train_shuffle.csv")
+    # test_shuffle_path = Path("./data/data_shuffle/test_shuffle.csv")
+    
+
+    # data预处理 & 保存
+     # 尽可能使用大的batch_size提高速度
+    # if not os.path.exists(train_encoder_path):
+        # print(f"❌ 不存在encoder后的文件{train_encoder_path}, 现开始编码+保存...")
+        # data_preEncoder(source_path, train_encoder_path, train_shuffle_path, bs=32)
+
+
+
+        # 不建议直接把model当参数传入, 而是使用get_model；因为model也可以从本地保存的文件加载
+        # 也就是train和pred任务分离
+
+    '''
+    drugbank_path = Path("./data/dataset/drugbank/drugbank.csv")
+    hit_path = Path("./data/dataset/hit/hit.csv")
+    '''
+
+
+# SequenceEncoder: 为什么我要把这一部分单独摘出来？
+#     因为有了序列后, encoder部分可以提前处理, 这样节约训练的时间
+
+
+# encoder_path, shuffle_path
+
+
+

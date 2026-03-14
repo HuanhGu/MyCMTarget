@@ -19,11 +19,11 @@ from model.scorer import Scorer
 
 
 class CMTargetModel(nn.Module):
-    def __init__(self, configs):
+    def __init__(self, configs, feature_extractor):
         super(CMTargetModel, self).__init__()
         self.configs = configs
         self.stamp = configs['timestamp']
-        self.feature_extractor = FeatureExtractor()
+        self.feature_extractor = feature_extractor
         self.device = configs['device']
 
         #  2 特征融合的超参数
@@ -127,10 +127,9 @@ class CMTargetModel(nn.Module):
         return score, contrastive_Loss, load_balancing_loss
     
     
-    def save_model(self):
-        "self.configs['model_path']"
-        model_path = os.path.join("checkpoints", f"{self.stamp}_{'AttFusion'}.pt")
-        torch.save(self.state_dict(), model_path) # 保存权重参数
+    def save_model(self, output_path = './checkpoints/tmp.pt'):
+        # model_path = os.path.join("checkpoints", f"{self.stamp}_{'AttFusion'}.pt")
+        torch.save(self.state_dict(), output_path) # 保存权重参数
         
     def load_model(self, model_path):
         self.load_state_dict(torch.load(model_path))

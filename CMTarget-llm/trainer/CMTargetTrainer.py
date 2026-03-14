@@ -2,6 +2,10 @@ from torch import nn
 import torch
 import torch.optim as optim
 from tqdm import tqdm
+import os
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from embedding.FeatureExtract import FeatureExtractor
 from embedding.dataset_build import *
@@ -9,7 +13,7 @@ from model.CMTargetModel import CMTargetModel
 from model.multi_fusion import *
 from model.moe import *
 from utils.metrix import *
-from utils.utils import TrainLogger, PredictLogger
+from utils.utils import TrainLogger, PredictLogger, get_data_new_path
 
 
 
@@ -19,49 +23,70 @@ class CMTargetTrainer():
         dataloader: (compound, protein, label), [3, batch_size, token_num, token_dim]
     
     """
-    def __init__(self, configs, encoder_path, hit_shuffle_path):
+    def __init__(self, configs, source_datapath, model_path):
         self.configs = configs
-        self.device = configs['device']
-        self.model = self.get_model()
-        self.encoder_path = encoder_path
-        self.hit_shuffle_path = hit_shuffle_path
-        # self.dataloader = dataloader
+        self.source_data_path = source_datapath
 
+        self.device = configs['device']
         self.learning_rate = configs['learning_rate']
         self.epochs = configs['epochs']
         self.batch_size = configs['batch_size']
 
+        self.feature_extractor = FeatureExtractor()
+        self.model = self.get_model(model_path)
+        self.train_loader, self.test_loader = self.get_dataloader(source_datapath)
+        
         self.criterion = nn.BCELoss()  # 使用二分类交叉熵损失函数
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
-        self.feature_extractor = FeatureExtractor()
-
-        # 数据loader
-        self.train_dataloader, self.train_ds_smiles = self.get_dataloader(encoder_path, hit_shuffle_path)
-        self.evl_dataloader, self.evl_ds_smiles = self.get_dataloader(encoder_path, hit_shuffle_path)
 
 
-    def get_dataloader(self, encoder_path, shuffle_path):
-        # [smiles, sequence, label]
-        train_ds_smiles = DTIDataset(shuffle_path)
-        # train_loader_smiles = DataLoader(train_ds_smiles, batch_size=self.batch_size)
-        
-        # [tensor, tensor, label]
-        train_ds = EncodedDTIDataset(encoder_path)
-        train_loader = DataLoader(train_ds, batch_size=self.batch_size, collate_fn=collate_fn)
-        return train_loader, train_ds_smiles
-
+   
     
-    def get_model(self):
-        model = CMTargetModel(self.configs)
-        if self.configs['model_path'] != '':
-            print('Get model from:', self.configs['model_path'])
-            model.load_model(self.configs['model_path'])
+    def get_dataloader(self, origin_datapath):
+        """
+        功能 :
+            提取原始数据的序列特征; 返回序列特征+对应的序列数据
+
+        输入 :
+            全部源域数据 [sequence, smiles, label]
+
+        输出 : 
+            序列特征+对应的序列数据
+            train_loader  test_loader
+            for p_feat, d_feat, label, smiles, seq in train_loader:
+            
+        """
+        def prepare_single_split(flag, df_split=None):
+            encoder_path, shuffle_path = get_data_new_path(origin_datapath, flag=flag)
+
+            if not os.path.exists(encoder_path) and df_split is not None:
+                loader = DataLoader(DTIDataset(df_split), batch_size=self.batch_size, shuffle=True)
+                encoder = SequenceEncoder(loader, self.feature_extractor)
+                encoder.encode_and_save(encoder_path, shuffle_path)
+            
+            # 重点：返回一个组合了特征和序列的 Dataset
+            combined_ds = PrecomputedCombinedDataset(encoder_path, shuffle_path)
+            return DataLoader(combined_ds, batch_size=self.batch_size, shuffle=True, collate_fn = collate_fn) # 这里可以放心 Shuffle
+
+        df = pd.read_csv(origin_datapath) # [3,3]
+        train_df, test_df = train_test_split(df, test_size=0.2, random_state=0, shuffle=True)
+        
+        train_loader = prepare_single_split("train", train_df)
+        test_loader = prepare_single_split("test", test_df)
+
+        return train_loader, test_loader
+
+
+    def get_model(self, model_path):
+        model = CMTargetModel(self.configs, self.feature_extractor)
+        if model_path != '':
+            print('Get model from:', model_path)
+            model.load_model(model_path)
 
         return model
     
 
     def model_train_anepoch(self, model, epoch_id):
-        "输入是train_dataloader"
         model = model.to(self.device)
         model.train()
         
@@ -69,7 +94,7 @@ class CMTargetTrainer():
         correct = 0
         total = 0
         
-        for compound_batch, protein_batch, label_batch in tqdm(self.train_dataloader):        
+        for compound_batch, protein_batch, label_batch, _, _ in tqdm(self.train_loader):        
 
             # 清空梯度
             self.optimizer.zero_grad()
@@ -98,7 +123,7 @@ class CMTargetTrainer():
             correct += (predicted == label_batch).sum().item()
             total += label_batch.size(0)
 
-        avg_loss = running_loss / len(self.train_dataloader)
+        avg_loss = running_loss / len(self.train_loader)
         accuracy = correct / total * 100
         print(f"Epoch [{epoch_id+1}/{self.epochs}], Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%") 
         return avg_loss
@@ -106,7 +131,6 @@ class CMTargetTrainer():
 
 
     def model_evaluate_anepoch(self, evl_model, epoch_id):
-        "输入是test_dataloader"
         evl_model = evl_model.to(self.device)
         evl_model.eval()
 
@@ -116,10 +140,10 @@ class CMTargetTrainer():
             y_true = []
             y_score = []
             i = 1
-            total = len(self.evl_dataloader)
-            loop = tqdm(self.evl_dataloader, total=total, smoothing=0, mininterval=1.0)
+            total = len(self.test_loader)
+            loop = tqdm(self.test_loader, total=total, smoothing=0, mininterval=1.0)
 
-            for compound_batch, protein_batch, label_batch in loop:
+            for compound_batch, protein_batch, label_batch, _, _ in loop:
 
                 # 预测结果：三种模态特征对齐融合+MoE编码 in:[3,2,501,100]  [3,2,68,768]
                 pred_score, contrastive_Loss, load_balancing_loss = evl_model(protein_batch, compound_batch)              
@@ -134,7 +158,7 @@ class CMTargetTrainer():
 
                 # 评价指标
                 recall, precision, f1, accuracy, auc = calculate_metrics(arr_targets, arr_predicts)
-
+                
                 loop.set_description(f'Batch [{i}/{total}]')
                 loop.set_postfix(recall=round(recall, 4), precision=round(precision, 4), f1=round(f1, 4),
                                  accuracy=round(accuracy, 4), auc=round(auc, 4))
@@ -146,36 +170,29 @@ class CMTargetTrainer():
 
 
 
-    def train(self):
-        
-        # model = self.get_model()
-        # model = self.model
-        # criterion = self.criterion
-        # train_dataloader = self.train_dataloader
-        # evl_dataloader = self.evl_dataloader
-        # optimizer = self.optimizer
-        epoch = self.epochs
-        
-        max_f1 = 0
-        
+    def train(self, output_path):
+        print("start pre-training...")
+
+        drug_list = self.train_loader.dataset.df['compound'].tolist() + self.test_loader.dataset.df['compound'].tolist()
+        protein_list = self.train_loader.dataset.df['protein'].tolist() + self.test_loader.dataset.df['protein'].tolist()
+
         logger = TrainLogger(f"Training", self.configs['timestamp'])
-        
-        protein_list = self.train_ds_smiles.data['protein'].tolist()
-        drug_list = self.train_ds_smiles.data['compound'].tolist()
-        
         logger.update_protein_drug(protein_list, drug_list)
 
-        for i in range(epoch):
+        max_f1 = 0
+        for i in range(self.epochs):
             print(f"\n the train epoch is : {i} \n")
             loss = self.model_train_anepoch(self.model, i)
             recall, precision, f1, accuracy, auc, y_true, y_score = self.model_evaluate_anepoch(self.model, i)
             
-            logger.write(f"Epoch [{i + 1}/{epoch}]: loss = {round(loss, 4)}, recall = {round(recall, 4)}, precision = {round(precision, 4)}, f1 = {round(f1, 4)}, accuracy = {round(accuracy, 4)}, auc = {round(auc, 4)}")
+            logger.write(f"Epoch [{i + 1}/{self.epochs}]: loss = {round(loss, 4)}, recall = {round(recall, 4)}, precision = {round(precision, 4)}, f1 = {round(f1, 4)}, accuracy = {round(accuracy, 4)}, auc = {round(auc, 4)}")
             logger.log_loss(loss)
             logger.log_metrix(recall, precision, f1, accuracy, auc)
             
             if f1 > max_f1:
                 logger.update_true_score(y_true, y_score)
                 max_f1 = f1
-                self.model.save_model()
+                self.model.save_model(output_path)
 
+        print(f"\n preTraining finished, model has been saved to {output_path}")
+        

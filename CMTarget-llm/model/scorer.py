@@ -10,11 +10,11 @@ from model import *
 class GMF(torch.nn.Module):
     def __init__(self, emb_dim):
         super().__init__()
-        self.fcn = nn.Linear(in_features=emb_dim, out_features=1)
+        self.tune_fcn_GMF = nn.Linear(in_features=emb_dim, out_features=1)
 
     def forward(self, user_embedding, item_embedding):
         reaction_result = user_embedding * item_embedding  # [batch_size, max_atom_num, emb_dim]
-        output = self.fcn(reaction_result).squeeze(1)
+        output = self.tune_fcn_GMF(reaction_result).squeeze(1)
         output = torch.sigmoid(output)
         return output
 
@@ -22,11 +22,11 @@ class MF(torch.nn.Module):
     def __init__(self, emb_dim):
         super().__init__()
         self.emb_dim = emb_dim
-        self.linear = nn.Linear(in_features=emb_dim, out_features=1)
+        self.tune_linear_MF = nn.Linear(in_features=emb_dim, out_features=1)
 
     def forward(self, user_embedding, item_embedding):
         reaction_result = user_embedding * item_embedding  # [batch_size, emb_dim][2,256]
-        reaction_result = self.linear(reaction_result) # [2,256] →  [2,1]
+        reaction_result = self.tune_linear_MF(reaction_result) # [2,256] →  [2,1]
         # output = torch.sum(reaction_result, dim=1)
         output = torch.sum(reaction_result, dim=-1) # 修改,当batch=1时，dim就是-1[2]
         output = torch.sigmoid(output)
@@ -46,11 +46,11 @@ class Cosine(torch.nn.Module):
 class SelfAttentionPooling(nn.Module):
     def __init__(self, input_dim, hidden_dim=128):
         super(SelfAttentionPooling, self).__init__()
-        self.linear1 = nn.Linear(input_dim, hidden_dim)
+        self.tune_linear1 = nn.Linear(input_dim, hidden_dim)
         self.linear2 = nn.Linear(hidden_dim, 1)
 
     def forward(self, x): # 输入x维度:[token_num, dim]
-        scores = torch.tanh(self.linear1(x))    # (416,256) → (416,128)
+        scores = torch.tanh(self.tune_linear1(x))    # (416,256) → (416,128)
         scores = self.linear2(scores)           # (416,128) → (416,1)
         scores = scores.squeeze(-1)             # (416,1) → (416)
 

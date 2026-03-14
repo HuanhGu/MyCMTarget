@@ -1,4 +1,0 @@
-drug_bert_drugbank_hit_feature.csv
-drug_kg_drugbank_hit_feature.csv
-prot_bert_drugbank_hit_feature.csv
-prot_kg_drugbank_hit_feature.csv

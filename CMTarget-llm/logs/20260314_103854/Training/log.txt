@@ -1,0 +1,4 @@
+Epoch [1/2]: loss = 294.9177, recall = 0.0, precision = 0.0, f1 = 0.0, accuracy = 0.0, auc = 0.5
+Epoch [2/2]: loss = 292.582, recall = 0.0, precision = 0.0, f1 = 0.0, accuracy = 0.0, auc = 0.5
+Epoch [1/2]: loss = 603.5474, recall = 0.0, precision = 0.0, f1 = 0.0, accuracy = 0.0, auc = 0.5
+Epoch [2/2]: loss = 603.5474, recall = 0.0, precision = 0.0, f1 = 0.0, accuracy = 0.0, auc = 0.5
